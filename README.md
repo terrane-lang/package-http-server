@@ -6,6 +6,18 @@
 
 The [documentation publication](docs/src/manual.yaml) contains the [general documentation](docs/src/records/guides/introduction.yaml), a complete public API reference, and a [getting-started tutorial](docs/src/records/tutorials/first-server.yaml). These are YAML sources in the shared Terrane manual format; prose, declarations, code, and data examples retain their typed structure rather than being flattened into Markdown.
 
+The [annotation guide](docs/src/records/guides/annotations.yaml) describes the package's
+explicit native Terrane consumer. `endpoint`, `path`, `query`, and `body` metadata generate
+class-based route adapters, typed scalar and model-body extraction, JSON or HTML responses,
+and OpenAPI 3.1 JSON. `route-group` supplies a class mount prefix and controls schema
+inclusion; repeatable `static-directory` metadata mounts cwd-relative assets. Signatures
+determine types and query defaults; malformed inputs return 422.
+
+The [catalog demo](demo/README.md) exercises these capabilities with typed catalog models,
+HTML pages, static Stoplight Elements docs, and a prefixed `/api` with OpenAPI at
+`/api/openapi.json`. Build the consumer first with
+`sh packages/http-server/build-consumer.sh`, then build or run the demo through Terrane.
+
 ## Application model
 
 Create an application with `create-application`, add controllers with `application.mount`, add static content with `application.static-directory`, optionally replace the listen address with `application.with-address`, and start it with `application.serve`.
@@ -61,4 +73,10 @@ The current typed payload surface is text-first. Binary event payloads and expli
 
 ## Current boundary
 
-HTTP handlers return plain text, either without parameters through `routes.get` or with client identity through `routes.get-with-client`. Full request objects and safe extractors, structured responses, general middleware, state, additional HTTP methods, richer WebSocket payloads, and richer configuration remain future surface work. They should be introduced as typed Terrane APIs rather than exposing Rust extractor traits, service types, generic parameters, lifetimes, or borrowing.
+Text GET handlers and WebSockets remain available without consumers. `routes.endpoint` adds
+explicit request/response callbacks for GET, POST, PUT, PATCH, and DELETE. The annotation
+consumer supports class-based route groups, typed scalar and model request/response values,
+HTML and plain-text handlers, static directories, and OpenAPI generation. Dependency/state
+injection, general middleware, authentication metadata, and streaming responses remain
+outside this surface; applications use typed Terrane APIs rather than native extractor traits,
+service types, lifetimes, or borrowing.

@@ -1,0 +1,8 @@
+package = "http-server-consumer"
+artifact = "executable"
+
+[namespaces]
+http-server-consumer = "src"
+
+[terrane-dependencies]
+annotation-consumer-protocol = { path = "../../../tools/annotation-consumers/protocol" }

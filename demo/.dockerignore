@@ -1,0 +1,9 @@
+*
+!Dockerfile
+!healthcheck
+!public/
+!public/**
+!.docker/
+!.docker/app
+!scripts/
+!scripts/start.sh

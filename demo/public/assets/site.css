@@ -1,0 +1,6 @@
+* { box-sizing: border-box; }
+:root { color-scheme: light; font: 16px/1.6 system-ui, sans-serif; background: #f5f8fb; color: #17324d; }
+body { margin: 0; }
+main { max-width: 48rem; margin: 8vh auto; padding: 2.5rem; background: white; border: 1px solid #dce5ed; border-radius: 1rem; box-shadow: 0 1rem 3rem #17324d12; }
+h1 { line-height: 1.15; color: #102941; }
+a { color: #075bb5; }

@@ -1,0 +1,173 @@
+format: 1
+id: http-server.guide.annotations
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Annotated endpoints and OpenAPI
+  title-style: text
+  summary: Generate typed HTTP adapters and an OpenAPI document from explicitly selected annotated handlers.
+  tags: [http-server, annotations, openapi]
+  blocks:
+    - type: markdown
+      markdown: |-
+        HTTP annotations are ordinary typed declaration metadata. They do not register routes
+        merely by appearing in source. Build the package's native consumer and configure it
+        explicitly in the application manifest. The compiler passes selected canonical
+        declaration metadata to that executable and checks its generated Terrane source through
+        the ordinary package pipeline. No HTTP-specific compiler behavior or runtime source
+        reflection is involved.
+
+        Selected safe asynchronous non-throwing handlers may be standalone functions or
+        shared methods on selected classes. Path and query parameters are `string`, `int`,
+        or `bool`; query defaults must be compile-time scalar values of the declared type.
+        Results may be JSON-encoded scalars, `document-value`, selected ordinary model
+        classes, or `string` for `text/html` and `text/plain`. A body may be a decoded
+        `document-value` or a selected model class. Model schemas and codecs derive from
+        their actual class fields, including nested model values.
+
+        Explicit `operation-id` values remain unchanged. Otherwise the consumer derives a
+        unique URL-safe ID from the canonical declaration identity, so documentation viewers
+        can navigate operations without treating namespace separators as URL path segments.
+    - type: example
+      id: annotated-handler
+      title: A typed path parameter and optional query parameter
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        from /http-server/annotations import endpoint, path, query
+
+        /// Calculate a catalog quantity.
+        @[endpoint; method = 'GET', path = '/items/{item-id}', summary = 'Read an item']
+        async function read-item int; (
+            @[path;] item-id int,
+            @[query;] quantity int = 1,
+        )
+            return item-id * quantity
+      response: null
+      diagnostic: null
+      markdown: null
+  sections:
+    - id: consumer-configuration
+      title: Explicit consumer configuration
+      blocks:
+        - type: markdown
+          markdown: |-
+            Run `sh packages/http-server/build-consumer.sh` from the repository root.
+            The script builds a Terrane executable and stages it at the HTTP package's
+            `.trn/consumers/http-server`. Configure its command relative to the application
+            package directory. Select every handler and each of its parameter declarations;
+            parameter identities append `::parameter-name` to the callable identity.
+            The command is trusted executable code, not a sandbox.
+        - type: example
+          id: consumer-manifest
+          title: Manifest for an application beside the HTTP package
+          language: toml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            [terrane-dependencies]
+            http-server = { path = "../http-server" }
+
+            [consumers.http-server]
+            command = "../http-server/.trn/consumers/http-server"
+            declarations = [
+              "/catalog::read-item",
+              "/catalog::read-item::item-id",
+              "/catalog::read-item::quantity",
+            ]
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: markdown
+          markdown: |-
+            `mount-annotated` configures an application from explicitly selected source
+            classes. It instantiates each class, mounts its generated wrapper at the
+            `route-group` prefix, and applies its `static-directory` declarations. The
+            generated OpenAPI document is served at `/api/openapi.json` when the API class
+            uses prefix `/api`; its schema paths include that prefix and its server URL is
+            `/`. A group may set `document = false` to keep its endpoints out of the API
+            schema while still serving HTML pages.
+    - id: metadata
+      title: Metadata and validation
+      blocks:
+        - type: markdown
+          markdown: |-
+            Import annotations from `/http-server/annotations`. `endpoint` on a method supplies
+            `path`, `method`, optional `summary`, `description`, and `operation-id`, plus
+            `content-type` (default `application/json`). `path` and `query` supply an optional
+            external `name`, defaulting to the parameter name. `body` identifies one JSON body
+            parameter. Each parameter has exactly one transport annotation. Path placeholders
+            must match the selected path parameters.
+
+            Requiredness and JSON schema types come from the actual signature. A path
+            parameter is always required. A query parameter without a default is required;
+            a default appears in both runtime extraction and OpenAPI. Integer conversion,
+            strict boolean conversion, missing required values, and malformed JSON fail with
+            HTTP 422 before calling the handler. Generated responses default to
+            `application/json`. A returned string is a JSON string, not raw JSON text;
+            string endpoints may instead select `text/html` or `text/plain`.
+
+            Body and result types may be explicitly selected public Terrane model classes
+            with canonical default constructors. The consumer uses their public non-static
+            fields to generate typed JSON codecs and object schemas, including nested model
+            lists. Unknown fields and mismatched JSON types fail with 422. Missing fields
+            retain the class's actual defaults, including Terrane's implicit scalar and
+            collection defaults; a bare integer field therefore defaults to zero rather than
+            becoming required merely because it has no written initializer. Custom
+            constructors and derived model classes are currently rejected.
+            Named component schemas retain each class's title and use references for nested
+            models, including recursive model lists. Supported scalar fields include strings,
+            booleans, exact/fixed-width integers, and finite binary floats; scalar/model lists
+            and nullable fields need no document-map construction in application code.
+
+            The consumer rejects unsupported signatures, contradictory parameter metadata,
+            duplicate registrations and operation IDs, invalid methods or paths, and the
+            reserved `/api/openapi.json` route. Declaration documentation provides a
+            description when explicit metadata does not provide one. GET, POST, PUT, PATCH,
+            and DELETE are the initial operation methods. `route-group` is class metadata
+            with `prefix` (default `/`) and `document` (default `true`). `static-directory`
+            is repeatable class metadata with an absolute URL `path` and a directory relative
+            to the process working directory. Endpoint metadata adds `content-type`, default
+            `application/json`; `text/html` and `text/plain` responses require string results.
+
+            A narrow authored Rust module, `rust/conversions.rs`, supplies only owned
+            conversions: native text to Axum `Body`, buffered bytes to UTF-8 text, and
+            percent-decoded text. `projection/from-conversions` tracks the missing concrete
+            `From` surface; `projection/owned-percent-decoding` tracks scoped native `Cow`
+            results borrowing ordinary source locals. Remove the corresponding adapters
+            when ordinary projection admits those capabilities. Routing, query extraction,
+            JSON parsing, validation, generation, and OpenAPI construction remain Terrane
+            code. This module is not a Rust framework facade and must not gain HTTP policy.
+
+            Where a model uses binary floats, generated codecs use a small typed Rust
+            boundary around the standard finite floating-point parser. Numeric coercion does
+            not parse document text. This boundary supplies no HTTP behavior or model schema
+            rules and requires no Rust code in the application's model classes.
+    - id: demo
+      title: Runnable catalog demo and behavioral tests
+      blocks:
+        - type: markdown
+          markdown: |-
+            `packages/http-server/demo` is a runnable catalog service demonstrating
+            class-based API and site route groups, typed item/search/order models, defaulted
+            query parameters, HTML pages, and relative static-directory mounts for
+            Stoplight Elements docs and assets. Its integration suite exercises real HTTP
+            requests and checks typed body/output failures, HTML and static files, and
+            mounted OpenAPI paths. Order quoting is stateless and does not create or persist
+            orders. See the demo README for run and test commands.
+  see-also: [http-server.api.routes, http-server.api.controller]
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

@@ -18,6 +18,7 @@ navigation:
       - source: records/guides/configuration.yaml
       - source: records/guides/proxy-security.yaml
       - source: records/guides/websockets.yaml
+      - source: records/guides/annotations.yaml
   - group: Application API
     numbering: none
     children:
@@ -25,6 +26,7 @@ navigation:
       - source: records/api/application.yaml
       - source: records/api/controller.yaml
       - source: records/api/routes.yaml
+      - source: records/api/http-messages.yaml
       - source: records/api/client-info.yaml
       - source: records/api/access-policy.yaml
   - group: Configuration API

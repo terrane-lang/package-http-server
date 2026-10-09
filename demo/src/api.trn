@@ -1,0 +1,45 @@
+namespace http-server-demo
+
+from /http-server/annotations import endpoint, path, query, body, route-group
+from /core/collections import list
+
+@[route-group; prefix = '/api']
+class catalog-api
+    /// Check that the catalog service is running.
+    @[endpoint; method = 'GET', path = '/health', summary = 'Service health']
+    async function health string;
+        return 'ok'
+
+    /// Look up a catalog item. Detailed responses include stock information.
+    @[endpoint; method = 'GET', path = '/items/{item-id}', summary = 'Read a catalog item']
+    async function read-item item-response; (
+        @[path;] item-id int,
+        @[query;] detailed bool = false,
+    )
+        if item-id != 1
+            return create-item-response; item-id, 'Unknown item', 0, false
+        available = false
+        if detailed
+            available = true
+        return create-item-response; 1, 'Terrane notebook', 1200, available
+
+    /// Search the catalog; the limit defaults to ten when omitted.
+    @[endpoint; method = 'GET', path = '/search', summary = 'Search the catalog']
+    async function search search-response; (
+        @[query;] term string,
+        @[query;] limit int = 10,
+    )
+        matched = limit > 0 and (term.contains; 'notebook')
+        results list of item-response = list
+        if matched
+            results.append; (create-item-response; 1, 'Terrane notebook', 1200, true)
+        return create-search-response; term, limit, matched, results
+
+    /// Price a catalog order without persisting it.
+    @[endpoint; method = 'POST', path = '/orders/quote', summary = 'Price a catalog order']
+    async function quote-order quote-output; (
+        @[body;] order order-input,
+    )
+        if order.item-id != 1
+            return create-quote-output; order.item-id, order.quantity, 0
+        return create-quote-output; 1, order.quantity, order.quantity * 1200

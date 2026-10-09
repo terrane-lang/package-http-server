@@ -14,6 +14,9 @@ effects = ["build", "networking"]
 version = "=0.5.6"
 effects = ["build"]
 
+[rust-modules]
+conversions = "rust/conversions.rs"
+
 [rust-dependencies.http]
 version = "=1.5.0"
 effects = ["build"]
@@ -39,6 +42,10 @@ effects = ["build", "networking"]
 [rust-dependencies.client-ip]
 version = "=0.2.1"
 features = ["forwarded-header"]
+effects = ["build"]
+
+[rust-dependencies.urlencoding]
+version = "=2.1.3"
 effects = ["build"]
 
 [testing]

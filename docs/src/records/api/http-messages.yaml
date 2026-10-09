@@ -1,0 +1,54 @@
+format: 1
+id: http-server.api.http-messages
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: HTTP requests and responses
+  title-style: text
+  summary: Typed request extraction and explicit HTTP responses for endpoint adapters.
+  tags: [http-server, requests, responses]
+  blocks:
+    - type: markdown
+      markdown: |-
+        `routes.endpoint` supplies `http-request` to its asynchronous callback. `path-value`
+        and `query-value` return a decoded string or `none` when the named value is absent.
+        Empty query values remain empty strings, not absent values. Query form decoding
+        interprets a plus as a space; path decoding does not. JSON body reading consumes
+        the request body, is bounded to two MiB, and rejects malformed JSON or invalid UTF-8.
+        Generated annotation adapters convert input failures to HTTP 422 before calling
+        the selected handler.
+
+        `http-response` holds `status`, `content-type`, and `body`. `create-response` constructs
+        it from those three values. The body is already-encoded HTTP text, not an arbitrary
+        value automatically serialized by this low-level API. Annotation adapters perform
+        JSON serialization before creating responses. Existing text GET and WebSocket APIs
+        remain independent of annotation consumers.
+    - type: example
+      id: response-factory
+      title: Creating a text response
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        from /http-server import http-request, http-response, create-response
+
+        async function home http-response; request http-request
+            return create-response; 200, 'text/plain; charset=utf-8', 'Hello'
+      response: null
+      diagnostic: null
+      markdown: null
+  sections: []
+  see-also: [http-server.api.routes, http-server.guide.annotations]
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

@@ -1,0 +1,43 @@
+package = "http-server-demo"
+artifact = "executable"
+
+[namespaces]
+http-server-demo = "src"
+
+[terrane-dependencies]
+http-server = { path = ".." }
+
+[consumers.http-server]
+command = "../.trn/consumers/http-server"
+declarations = [
+  "/http-server-demo::item-response",
+  "/http-server-demo::item-response::id",
+  "/http-server-demo::item-response::name",
+  "/http-server-demo::item-response::price-cents",
+  "/http-server-demo::item-response::in-stock",
+  "/http-server-demo::search-response",
+  "/http-server-demo::search-response::term",
+  "/http-server-demo::search-response::limit",
+  "/http-server-demo::search-response::items",
+  "/http-server-demo::search-response::matches",
+  "/http-server-demo::order-input",
+  "/http-server-demo::order-input::item-id",
+  "/http-server-demo::order-input::quantity",
+  "/http-server-demo::quote-output",
+  "/http-server-demo::quote-output::item-id",
+  "/http-server-demo::quote-output::quantity",
+  "/http-server-demo::quote-output::total-cents",
+  "/http-server-demo::catalog-api",
+  "/http-server-demo::catalog-api::health",
+  "/http-server-demo::catalog-api::read-item",
+  "/http-server-demo::catalog-api::read-item::item-id",
+  "/http-server-demo::catalog-api::read-item::detailed",
+  "/http-server-demo::catalog-api::search",
+  "/http-server-demo::catalog-api::search::term",
+  "/http-server-demo::catalog-api::search::limit",
+  "/http-server-demo::catalog-api::quote-order",
+  "/http-server-demo::catalog-api::quote-order::order",
+  "/http-server-demo::site",
+  "/http-server-demo::site::home",
+  "/http-server-demo::site::about",
+]

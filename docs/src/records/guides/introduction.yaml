@@ -30,13 +30,14 @@ documentation:
         Terrane builders and interfaces; Axum, Tower HTTP, and Tokio are implementation
         dependencies rather than application-facing router or extractor APIs.
 
-        The package is experimental and intentionally narrow: ordinary GET handlers return
-        text, optional client information is supplied through a dedicated handler form,
-        static directories can be mounted, and WebSocket handlers expose text plus event
-        kinds. It does not provide general request extraction, structured HTTP responses,
-        middleware, state injection, arbitrary HTTP methods, or a broad WebSocket payload
-        API. See the API references for exact callable signatures and the tutorial for a
-        guided first server.
+        The package is experimental: ordinary GET handlers return text, client information
+        is supplied through a dedicated handler form, static directories can be mounted,
+        and WebSocket handlers expose text plus event kinds. Typed HTTP endpoints and an
+        explicit annotation consumer add scalar path/query extraction, Terrane class or
+        JSON document bodies and responses, and generated OpenAPI JSON. Nested model lists,
+        class route groups, HTML pages, and annotated static mounts are supported.
+        See [[http-server.guide.annotations]]. General middleware, dependency/state
+        injection, and a broad WebSocket payload API remain outside the current surface.
     - type: example
       id: package-dependency
       title: "Package and capability requirements"

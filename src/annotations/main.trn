@@ -1,0 +1,36 @@
+namespace http-server/annotations
+
+from /core/annotations import annotation, annotation-target
+from /core/collections import list
+
+@[annotation; targets = (list; (instance annotation-target::callable;)), repeatable = false]
+class endpoint
+    path string
+    method string = 'GET'
+    summary string = ''
+    description string = ''
+    operation-id string = ''
+    content-type string = 'application/json'
+
+
+@[annotation; targets = (list; (instance annotation-target::parameter;)), repeatable = false]
+class path
+    name string = ''
+
+@[annotation; targets = (list; (instance annotation-target::parameter;)), repeatable = false]
+class query
+    name string = ''
+
+@[annotation; targets = (list; (instance annotation-target::parameter;)), repeatable = false]
+class body
+
+
+@[annotation; targets = (list; (instance annotation-target::class;)), repeatable = false]
+class route-group
+    prefix string = '/'
+    document bool = true
+
+@[annotation; targets = (list; (instance annotation-target::class;)), repeatable = true]
+class static-directory
+    path string
+    directory string

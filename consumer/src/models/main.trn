@@ -1,0 +1,325 @@
+namespace http-server-consumer/models
+
+from /annotation-consumer-protocol import get, at, text, truth, quote, json-quote, annotation, consumer-error
+from /core/collections import list, range
+from /core/documents import document-value, make-document-none
+
+function model-error; declaration document-value, message string
+    throw (instance consumer-error; declaration, message)
+
+function type-name string; field document-value
+    raw = text; (get; field, 'type')
+    if (raw.contains.start; 'list of ')
+        item = raw.replace; 'list of ', ''
+        return 'list of '.concat; (item.replace; ' ', '')
+    return raw.replace; ' ', ''
+
+function short-name string; identity string
+    pieces = identity.split; '::'
+    return pieces[pieces.length - 1]
+
+function model-alias string; identity string
+    escaped = identity.replace; '_', '_5f'
+    escaped = escaped.replace; '/', '_2f'
+    escaped = escaped.replace; ':', '_3a'
+    return 'http-model-'.concat; escaped
+
+function class-record document-value throws consumer-error; kind string, declarations document-value
+    index int = 0
+    count int = 0
+    found = make-document-none;
+    while index < (declarations.length;)
+        record = at; declarations, index
+        identity = text; (get; record, 'identity')
+        if (text; (get; record, 'kind')) == 'class' and not (route-group-class; record) and (identity == kind or (short-name; identity) == kind)
+            found = record
+            count = count + 1
+        index = index + 1
+    if count > 1
+        model-error; found, ('ambiguous short model name: '.concat; kind)
+    if count == 1
+        return found
+    model-error; (make-document-none;), ('no selected model class for '.concat; kind)
+    return make-document-none;
+
+function is-model bool; kind string, declarations document-value
+    index int = 0
+    while index < (declarations.length;)
+        record = at; declarations, index
+        identity = text; (get; record, 'identity')
+        if (text; (get; record, 'kind')) == 'class' and not (route-group-class; record) and (identity == kind or (short-name; identity) == kind)
+            return true
+        index = index + 1
+    return false
+
+function route-group-class bool; declaration document-value
+    metadata = annotation; declaration, 'route-group', '/http-server/annotations'
+    return metadata.kind != 'none'
+
+function model-schema string throws consumer-error; kind string, declarations document-value
+    cls = class-record; kind, declarations
+    fields = get; cls, 'fields'
+    schema = '{"title":'.concat; (json-quote; (short-name; (text; (get; cls, 'identity')))), ',"type":"object","properties":{'
+    included int = 0
+    required string = ''
+    index int = 0
+    while index < (fields.length;)
+        field = at; fields, index
+        if (text; (get; field, 'visibility')) == 'public' and not (truth; (get; field, 'static'))
+            name = text; (get; field, 'external_name')
+            if included > 0
+                schema = schema.concat; ','
+            schema = schema.concat; (json-quote; name), ':', (schema-field; field, declarations)
+            included = included + 1
+            if not (truth; (get; field, 'optional')) and not (truth; (get; field, 'defaulted'))
+                if required != ''
+                    required = required.concat; ','
+                required = required.concat; (json-quote; name)
+        index = index + 1
+    schema = schema.concat; '},"additionalProperties":false'
+    if required != ''
+        schema = schema.concat; ',"required":[', required, ']'
+    return schema.concat; '}'
+
+function schema-field string throws consumer-error; field document-value, declarations document-value
+    kind = type-name; field
+    optional = (kind.contains.end; '|none')
+    base = kind
+    if optional
+        base = kind.replace; '|none', ''
+    schema = model-field-schema; base, declarations, field
+    if optional
+        return '{"anyOf":['.concat; schema, ',{"type":"null"}]}'
+    return schema
+
+function integer-kind bool; kind string
+    return kind == 'int' or kind == 'int8' or kind == 'int16' or kind == 'int32' or kind == 'int64' or kind == 'int128' or kind == 'uint8' or kind == 'uint16' or kind == 'uint32' or kind == 'uint64' or kind == 'uint128'
+
+function model-field-schema string throws consumer-error; kind string, declarations document-value, field document-value
+    if kind == 'string'
+        return '{"type":"string"}'
+    if integer-kind; kind
+        return '{"type":"integer"}'
+    if kind == 'float' or kind == 'float32' or kind == 'float64'
+        return '{"type":"number"}'
+    if kind == 'bool'
+        return '{"type":"boolean"}'
+    if (kind.contains; 'list of ')
+        item-kind = kind.replace; 'list of ', ''
+        return '{"type":"array","items":'.concat; (model-field-schema; item-kind, declarations, field), '}'
+    if is-model; kind, declarations
+        return (model-reference; kind, declarations)
+    model-error; field, ('unsupported model field type: '.concat; kind)
+    return '{}'
+
+function model-reference string throws consumer-error; kind string, declarations document-value
+    cls = class-record; kind, declarations
+    identity = text; (get; cls, 'identity')
+    return '{"$ref":'.concat; (json-quote; ('#/components/schemas/'.concat; (model-alias; identity))), '}'
+
+function model-schemas string throws consumer-error; declarations document-value
+    schemas string = '{'
+    count int = 0
+    for index in (range; 0, (declarations.length;))
+        cls = at; declarations, index
+        if (text; (get; cls, 'kind')) == 'class' and not (route-group-class; cls)
+            identity = text; (get; cls, 'identity')
+            if count > 0
+                schemas = schemas.concat; ','
+            count = count + 1
+            schemas = schemas.concat; (json-quote; (model-alias; identity)), ':', (model-schema; identity, declarations)
+    return schemas.concat; '}'
+
+function model-codecs string throws consumer-error; declarations document-value
+    generated = 'from /core/collections import list\nfrom /core/documents import document-value, document-map-entries, make-document-none, make-document-string, make-document-bool, make-document-integer, make-document-decimal, make-document-list, make-document-map\nfrom /core/errors import coercion-error, throwable\n'
+    for index in (range; 0, (declarations.length;))
+        cls = at; declarations, index
+        if (text; (get; cls, 'kind')) == 'class' and not (route-group-class; cls)
+            identity = text; (get; cls, 'identity')
+            pieces = identity.split; '::'
+            class-name = short-name; identity
+            class-alias = model-alias; identity
+            generated = generated.concat; 'from ', pieces[0], ' import ', class-name, ' as ', class-alias, '\n'
+    generated = generated.concat; '\n'
+    generated = generated.concat; (floating-codecs; declarations)
+    for index in (range; 0, (declarations.length;))
+        cls = at; declarations, index
+        if (text; (get; cls, 'kind')) == 'class' and not (route-group-class; cls)
+            identity = text; (get; cls, 'identity')
+            generated = generated.concat; (codec-for; identity, declarations)
+    return generated
+
+# Decimal document text needs the standard finite binary-float parser, not numeric coercion.
+function floating-codecs string throws consumer-error; declarations document-value
+    generated string = ''
+    for precision in (list; '32', '64')
+        needed bool = false
+        for index in (range; 0, (declarations.length;))
+            cls = at; declarations, index
+            if (text; (get; cls, 'kind')) == 'class' and not (route-group-class; cls)
+                fields = get; cls, 'fields'
+                for field-index in (range; 0, (fields.length;))
+                    kind = type-name; (at; fields, field-index)
+                    kind = kind.replace; '|none', ''
+                    kind = kind.replace; 'list of ', ''
+                    if kind == ('float'.concat; precision) or (precision == '64' and kind == 'float')
+                        needed = true
+        if needed
+            if generated == ''
+                generated = 'from /core/documents/json import parse-json, default-json-options\n\n'
+            generated = generated.concat; 'class parsed-model-float', precision, '\n    value float', precision, ' = 0.0\n    failed bool = true\n\nfunction parse-model-float', precision, ' float', precision, ' throws coercion-error; text string\n    parsed parsed-model-float', precision, ' = rust\n        match text.parse::<f', precision, '>() {\n            Ok(value) if value.is_finite() => ParsedModelFloat', precision, ' { value, failed: false },\n            _ => ParsedModelFloat', precision, ' { value: 0.0, failed: true },\n        }\n    if parsed.failed\n        throw coercion-error\n    return parsed.value\n\n'
+            generated = generated.concat; 'function encode-model-float', precision, ' document-value; value float', precision, '\n    return (parse-json; (\'\'.concat; value), (default-json-options;)).value\n\n'
+    return generated
+
+function model-encoder string throws consumer-error; kind string, declarations document-value
+    cls = class-record; kind, declarations
+    return (model-alias; (text; (get; cls, 'identity'))).concat; '-to-document'
+function model-decoder string throws consumer-error; kind string, declarations document-value
+    cls = class-record; kind, declarations
+    return (model-alias; (text; (get; cls, 'identity'))).concat; '-from-document'
+
+function codec-for string throws consumer-error; kind string, declarations document-value
+    cls = class-record; kind, declarations
+    contracts = get; cls, 'contracts'
+    constructor = get; contracts, 'constructor'
+    base-class = get; contracts, 'base'
+    if (text; (get; cls, 'visibility')) != 'public' or constructor.kind != 'none' or base-class.kind != 'none'
+        model-error; cls, 'model codec requires a public non-derived class with its canonical default constructor'
+    fields = get; cls, 'fields'
+    identity = text; (get; cls, 'identity')
+    name = model-alias; identity
+    source = ''
+    source = source.concat; 'function ', name, '-to-document document-value; value ', name, '\n    entries = instance document-map-entries;\n'
+    for ix in (range; 0, (fields.length;))
+        field = at; fields, ix
+        visibility = text; (get; field, 'visibility')
+        if visibility == 'public' and not (truth; (get; field, 'static'))
+            source = source.concat; (encode-field; field, ix, declarations)
+    source = source.concat; '    return (make-document-map; entries).value\n\nfunction ', name, '-from-document ', name, ' throws throwable; document document-value\n    if document.kind != \'map\'\n        throw coercion-error\n    key-index int = 0\n    while key-index < (document.length;)\n        key = document.key; key-index\n'
+    condition = 'true'
+    for ix in (range; 0, (fields.length;))
+        field = at; fields, ix
+        if (text; (get; field, 'visibility')) == 'public' and not (truth; (get; field, 'static'))
+            if condition == 'true'
+                condition = ''
+            else
+                condition = condition.concat; ' and '
+            condition = condition.concat; 'key != ', (quote; (text; (get; field, 'external_name')))
+    source = source.concat; '        if ', condition, '\n            throw coercion-error\n        key-index = key-index + 1\n    value = instance ', name, ';\n'
+    for ix in (range; 0, (fields.length;))
+        field = at; fields, ix
+        if (text; (get; field, 'visibility')) == 'public' and not (truth; (get; field, 'static'))
+            source = source.concat; (decode-field; field, ix, declarations)
+    return source.concat; '    return value\n\n'
+function decode-field string throws consumer-error; field document-value, index int, declarations document-value
+    member = text; (get; field, 'name')
+    wire = text; (get; field, 'external_name')
+    kind = type-name; field
+    optional = (kind.contains.end; '|none')
+    base = kind
+    if optional
+        base = kind.replace; '|none', ''
+    required = not optional and not (truth; (get; field, 'defaulted'))
+    source = '    slot'.concat; index, ' = document.field; ', (quote; wire), '\n'
+    if required
+        source = source.concat; '    if slot', index, '.failed\n        throw coercion-error\n'
+    source = source.concat; '    if not slot', index, '.failed\n'
+    if optional
+        source = source.concat; '        if slot', index, '.value.kind == \'none\'\n            value.', member, ' = none\n        else\n'
+        source = source.concat; (decode-assignment; base, member, index, declarations, field, '            ')
+    else
+        source = source.concat; (decode-assignment; base, member, index, declarations, field, '        ')
+    return source
+
+function decode-assignment string throws consumer-error; kind string, member string, index int, declarations document-value, field document-value, indent string
+    if (kind.contains.start; 'list of ')
+        item = kind.replace; 'list of ', ''
+        item-class = item
+        if is-model; item, declarations
+            item-class = model-alias; (text; (get; (class-record; item, declarations), 'identity'))
+        source = indent.concat; 'if slot', index, '.value.kind != \'list\'\n', indent, '    throw coercion-error\n', indent, 'decoded-items', index, ' list of ', item-class, ' = list\n', indent, 'item-index', index, ' int = 0\n', indent, 'while item-index', index, ' < (slot', index, '.value.length;)\n', indent, '    item', index, ' = slot', index, '.value.item; item-index', index, '\n'
+        expected = document-kind; item
+        if expected == 'float'
+            source = source.concat; indent, '    if item', index, '.value.kind != \'decimal\' and item', index, '.value.kind != \'integer\'\n', indent, '        throw coercion-error\n'
+        else if expected != 'map'
+            source = source.concat; indent, '    if item', index, '.value.kind != ', (quote; expected), '\n', indent, '        throw coercion-error\n'
+        source = source.concat; indent, '    decoded-items', index, '.append; ', (decode-expression; item, ('item'.concat; index, '.value'), declarations, field), '\n', indent, '    item-index', index, ' = item-index', index, ' + 1\n', indent, 'value.', member, ' = decoded-items', index, '\n'
+        return source
+    expected = document-kind; kind
+    source = ''
+    if expected == 'float'
+        source = indent.concat; 'if slot', index, '.value.kind != \'decimal\' and slot', index, '.value.kind != \'integer\'\n', indent, '    throw coercion-error\n'
+    else if expected != 'map'
+        source = indent.concat; 'if slot', index, '.value.kind != ', (quote; expected), '\n', indent, '    throw coercion-error\n'
+    return source.concat; indent, 'value.', member, ' = ', (decode-expression; kind, ('slot'.concat; index, '.value'), declarations, field), '\n'
+
+function document-kind string; kind string
+    if integer-kind; kind
+        return 'integer'
+    if kind == 'bool'
+        return 'bool'
+    if kind == 'float' or kind == 'float32' or kind == 'float64'
+        return 'float'
+    if (kind.contains.start; 'list of ')
+        return 'list'
+    if kind == 'string'
+        return 'string'
+    return 'map'
+function encode-field string throws consumer-error; field document-value, index int, declarations document-value
+    member = text; (get; field, 'name')
+    wire = text; (get; field, 'external_name')
+    kind = type-name; field
+    optional = (kind.contains.end; '|none')
+    base = kind
+    if optional
+        base = kind.replace; '|none', ''
+        local = 'member-value'.concat; index
+        prefix = '    '.concat; local, ' = value.', member, '\n    if ', local, ' != none\n'
+        suffix = '    else\n        entries.append; '.concat; (quote; wire), ', (make-document-none;)\n'
+        if (base.contains.start; 'list of ')
+            return prefix.concat; (encode-list-field; base, local, wire, index, declarations, field, '        '), suffix
+        return prefix.concat; '        entries.append; ', (quote; wire), ', ', (encode-expression; base, local, declarations, field), '\n', suffix
+    if (base.contains.start; 'list of ')
+        return (encode-list-field; base, ('value.'.concat; member), wire, index, declarations, field, '    ')
+    return '    entries.append; '.concat; (quote; wire), ', ', (encode-expression; base, ('value.'.concat; member), declarations, field), '\n'
+
+function encode-list-field string throws consumer-error; kind string, expression string, wire string, index int, declarations document-value, field document-value, indent string
+    item = kind.replace; 'list of ', ''
+    item-expression = expression.concat; '[item-index', index, ']'
+    return indent.concat; 'encoded-items', index, ' list of document-value = list\n', indent, 'item-index', index, ' int = 0\n', indent, 'while item-index', index, ' < ', expression, '.length\n', indent, '    encoded-items', index, '.append; ', (encode-expression; item, item-expression, declarations, field), '\n', indent, '    item-index', index, ' = item-index', index, ' + 1\n', indent, 'encoded-list', index, ' = make-document-list; encoded-items', index, '\n', indent, 'entries.append; ', (quote; wire), ', encoded-list', index, '.value\n'
+function encode-expression string throws consumer-error; kind string, expression string, declarations document-value, field document-value
+    if kind == 'string'
+        return '(make-document-string; '.concat; expression, ')'
+    if kind == 'bool'
+        return '(make-document-bool; '.concat; expression, ')'
+    if integer-kind; kind
+        return '(make-document-integer; (\'\'.concat; '.concat; expression, ')).value'
+    if kind == 'float' or kind == 'float32' or kind == 'float64'
+        if kind == 'float'
+            kind = 'float64'
+        return '(encode-model-'.concat; kind, '; ', expression, ')'
+    if (kind.contains; 'list of ')
+        model-error; field, 'list model fields require generated element codecs'
+    if is-model; kind, declarations
+        return '('.concat; (model-alias; (text; (get; (class-record; kind, declarations), 'identity'))), '-to-document; ', expression, ')'
+    model-error; field, ('unsupported model field type: '.concat; kind)
+    return ''
+
+function decode-expression string throws consumer-error; kind string, expression string, declarations document-value, field document-value
+    if kind == 'string'
+        return expression.concat; '.scalar'
+    if kind == 'bool'
+        return '('.concat; expression, '.scalar == \'true\')'
+    if integer-kind; kind
+        return '('.concat; expression, '.scalar.radix; 10)'
+    if kind == 'float' or kind == 'float32' or kind == 'float64'
+        if kind == 'float'
+            kind = 'float64'
+        return '(parse-model-'.concat; kind, '; ', expression, '.scalar)'
+    if (kind.contains; 'list of ')
+        model-error; field, 'list model fields require generated element codecs'
+    if is-model; kind, declarations
+        return '('.concat; (model-alias; (text; (get; (class-record; kind, declarations), 'identity'))), '-from-document; ', expression, ')'
+    model-error; field, ('unsupported model field type: '.concat; kind)
+    return ''
+

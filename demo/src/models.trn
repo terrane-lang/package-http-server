@@ -1,0 +1,47 @@
+namespace http-server-demo
+
+from /core/collections import list
+
+class item-response
+    id int
+    name string
+    price-cents int
+    in-stock bool
+
+class search-response
+    term string
+    limit int
+    matches bool
+    items list of item-response
+
+class order-input
+    item-id int
+    quantity int
+
+class quote-output
+    item-id int
+    quantity int
+    total-cents int
+
+function create-item-response item-response; id int, name string, price-cents int, in-stock bool
+    value = instance item-response;
+    value.id = id
+    value.name = name
+    value.price-cents = price-cents
+    value.in-stock = in-stock
+    return value
+
+function create-search-response search-response; term string, limit int, matches bool, items list of item-response
+    value = instance search-response;
+    value.term = term
+    value.limit = limit
+    value.matches = matches
+    value.items = items
+    return value
+
+function create-quote-output quote-output; item-id int, quantity int, total-cents int
+    value = instance quote-output;
+    value.item-id = item-id
+    value.quantity = quantity
+    value.total-cents = total-cents
+    return value

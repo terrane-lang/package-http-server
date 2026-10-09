@@ -12,6 +12,13 @@ from /deps/axum/extract/connect-info import IntoMakeServiceWithConnectInfo as in
 from /deps/http import StatusCode as status-code
 from /core/errors import dependency-error, throwable
 
+enum http-method
+    get
+    post
+    put
+    patch
+    delete
+
 public class routes
     private router native-router = native-router::new;
 
@@ -32,6 +39,33 @@ public class routes
             return await handler; (instance client-info; peer, client)
         method-router native-method-router = native-method-router::new;
         method-router = method-router.get; native-handler
+        router = move this.router
+        router = router.route; path, move method-router
+        return instance routes; move router
+
+    consuming function endpoint routes; method http-method, path string, handler async function from http-request to http-response
+        callback = async function native-response; request native-request
+            try
+                typed-request = instance http-request; move request, path
+            catch
+                return (status-code::UNPROCESSABLE-ENTITY).into_response;
+            try
+                response = await handler; move typed-request
+                return into-native-response; move response
+            catch
+                return (status-code::INTERNAL-SERVER-ERROR).into_response;
+        method-router native-method-router = native-method-router::new;
+        match method
+            case http-method::get
+                method-router = method-router.get; callback
+            case http-method::post
+                method-router = method-router.post; callback
+            case http-method::put
+                method-router = method-router.put; callback
+            case http-method::patch
+                method-router = method-router.patch; callback
+            case http-method::delete
+                method-router = method-router.delete; callback
         router = move this.router
         router = router.route; path, move method-router
         return instance routes; move router
