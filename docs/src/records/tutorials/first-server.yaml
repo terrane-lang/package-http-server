@@ -1,0 +1,334 @@
+format: 1
+id: http-server.tutorial.first-server
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Build your first HTTP server
+  title-style: text
+  summary: >-
+    Build a small Terrane application with two text routes and a static directory,
+    then extend it with client identity, WebSockets, and configuration.
+  tags: [http-server, tutorial, getting-started]
+  blocks:
+    - type: markdown
+      markdown: |-
+        This tutorial assumes a working Terrane compiler and a local checkout of
+        `http-server`. It uses only the current public library API. You do not
+        need to construct Axum routers, write Rust adapters, or declare the
+        library's Rust dependencies again in your application.
+  sections:
+    - id: create-the-project
+      title: Create the project
+      blocks:
+        - type: markdown
+          markdown: |-
+            Create a directory named `hello-http` beside the `http-server`
+            package. The manifest below resolves `../http-server` relative to
+            `hello-http/package.toml`; adjust that dependency path if your
+            checkout layout differs. Keep all four files under `hello-http`.
+
+            The application's profile permits building, network access, static
+            file reads, and the thread-backed executor. The library is
+            source-composed into this application. Its native dependency
+            requirements remain part of the final application's capability
+            policy.
+        - type: example
+          id: complete-server
+          title: A complete application
+          language: terrane
+          mode: build
+          target: null
+          timeout-ms: null
+          files:
+            - path: package.toml
+              language: toml
+              source: |-
+                package = "hello-http"
+                rust-toolchain = "pinned"
+
+                [profile]
+                capabilities = ["build", "networking", "filesystem", "threads"]
+
+                [namespaces]
+                hello-http = "src"
+
+                [terrane-dependencies.http-server]
+                path = "../http-server"
+            - path: src/site.trn
+              language: terrane
+              source: |-
+                namespace hello-http
+
+                from /http-server import controller, routes
+
+                class site implements controller
+                    consuming function routes routes; registered-routes routes
+                        registered-routes = registered-routes.get; '/', this.home
+                        return registered-routes.get; '/about', this.about
+
+                    async function home string;
+                        return 'Hello from http-server!'
+
+                    async function about string;
+                        return 'A Terrane application with text and static routes.'
+            - path: src/main.trn
+              language: terrane
+              source: |-
+                namespace hello-http
+
+                from /http-server import create-application
+                from /core/errors import throwable
+
+                async function main none throws throwable;
+                    app = create-application;
+                    app = app.mount; '/', (instance site;)
+                    app = app.static-directory; '/static', 'public'
+                    await app.serve;
+                    return none
+            - path: public/hello.txt
+              language: text
+              source: |-
+                Hello from the static directory!
+          entry: package.toml
+          response: null
+          diagnostic: null
+          markdown: |-
+            This example is a buildable project, not a finite `run` example:
+            serving normally continues until the process is stopped. The local
+            `http-server` dependency must be available at the declared path.
+      sections: []
+    - id: understand-the-controller
+      title: Understand the controller
+      blocks:
+        - type: markdown
+          markdown: |-
+            `site` implements [[http-server.api.controller]]. The framework
+            calls its consuming `routes` method with a registration value. Each
+            [[http-server.api.routes]] builder consumes the old value and
+            returns its replacement, so assign or return the result rather
+            than discarding it. `registered-routes` is deliberately distinct
+            from the `routes` type name.
+
+            The handlers are reusable asynchronous functions returning text.
+            Their paths are relative to the controller's mount prefix. Mounting
+            at `/` merges the controller's root and about routes into the
+            application. Mounting the same controller at `/info` instead would
+            place its routes under that prefix. Static content is mounted
+            separately and does not require a controller callback.
+      sections: []
+    - id: run-and-request
+      title: Run the server and make requests
+      blocks:
+        - type: markdown
+          markdown: |-
+            Run the following command from `hello-http`. The default address is
+            `127.0.0.1:3000`, so the server is initially reachable only on the
+            local machine. Leave this terminal running and make requests from
+            a second terminal. Stop the process with your terminal's interrupt
+            when finished; the library does not currently expose a graceful
+            shutdown callback.
+        - type: example
+          id: run-command
+          title: Start the application
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            terrane run .
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: example
+          id: request-home
+          title: Request the home page
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            curl -sS http://127.0.0.1:3000/
+          response:
+            kind: stdout
+            language: text
+            display: shown
+            content: |-
+              Hello from http-server!
+          diagnostic: null
+          markdown: null
+        - type: example
+          id: request-static
+          title: Request the static file
+          language: console
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            curl -sS http://127.0.0.1:3000/static/hello.txt
+          response:
+            kind: stdout
+            language: text
+            display: shown
+            content: |-
+              Hello from the static directory!
+          diagnostic: null
+          markdown: null
+        - type: markdown
+          markdown: |-
+            `/about` exercises the second text handler. A missing route is
+            handled by the underlying router, not by either controller method.
+            Static paths are resolved against `public` from the process's
+            working directory, which is why these commands start in the project
+            root. If port 3000 is already in use, insert a `with-address` call
+            before `serve` and use that address in your requests.
+        - type: example
+          id: choose-address
+          title: Choose another listen address
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            app = app.with-address; '127.0.0.1:8081'
+          response: null
+          diagnostic: null
+          markdown: null
+      sections: []
+    - id: add-client-identity
+      title: Add a client-aware route
+      blocks:
+        - type: markdown
+          markdown: |-
+            A handler registered with `get-with-client` receives
+            [[http-server.api.client-info]]. Add the registration below to the
+            controller before returning its routes, add `client-info` to the
+            `/http-server` import, and add the handler to `site`.
+        - type: example
+          id: client-registration
+          title: Register an identity-aware handler
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            registered-routes = registered-routes.get-with-client; '/identity', this.identity
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: example
+          id: client-handler
+          title: Handle resolved or unresolved identity
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            async function identity string; client client-info
+                address = client.client-ip;
+                if address != none
+                    return 'Client identity resolved.'
+                return 'Client identity unresolved.'
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: markdown
+          markdown: |-
+            With this tutorial's empty direct allowlist, forwarded headers are
+            ignored and the resolved client is the TCP peer. The peer and
+            client accessors return projected address values, not strings.
+            Client identity remains available even when there is no client
+            allowlist. Do not trust a header merely because it is present;
+            configure proxy trust as described in
+            [[http-server.guide.proxy-security]] before deploying behind a
+            proxy.
+      sections: []
+    - id: add-a-websocket
+      title: Add a one-message WebSocket echo
+      blocks:
+        - type: markdown
+          markdown: |-
+            Add `websocket-session` to the `/http-server` import, register the
+            endpoint before returning the routes, and add the handler below.
+            An ordinary HTTP `curl` request is not a WebSocket session: connect
+            with a WebSocket client, send a text message, and observe its echo
+            followed by a close frame.
+        - type: example
+          id: websocket-registration
+          title: Register the WebSocket endpoint
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            registered-routes = registered-routes.websocket; '/echo', this.echo
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: example
+          id: websocket-handler
+          title: Echo one text message and close
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            async function echo none throws dependency-error; session websocket-session
+                event = await session.receive;
+                text = event.text
+                if text != none
+                    await session.send-text; text
+                await session.close;
+                return none
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: markdown
+          markdown: |-
+            Import `dependency-error` from `/core/errors` in the controller
+            source. The handler declares the transport failure contract required
+            by registration. It handles one event, not an unbounded chat loop;
+            non-text events do not acquire a fabricated text payload. See
+            [[http-server.guide.websockets]] for event kinds and failure behavior.
+      sections: []
+    - id: choose-next-steps
+      title: Configure and deploy deliberately
+      blocks:
+        - type: markdown
+          markdown: |-
+            The application is now small enough to understand end to end. Move
+            addresses and mounts into YAML using
+            [[http-server.guide.configuration]] when you need deployment-specific
+            composition. YAML identifies controllers, but your Terrane source
+            still maps those identifiers to concrete instances. It does not
+            configure either network allowlist.
+
+            Before exposing the listener, review
+            [[http-server.guide.proxy-security]]. The current forwarded-identity
+            policy supports a single trusted edge proxy, not arbitrary
+            multi-hop traversal. Set the proxy and client allowlists separately
+            if you need both connection enforcement and originating-client
+            restrictions.
+
+            Consult [[http-server.api.application]] and
+            [[http-server.api.routes]] for every available builder and handler
+            contract. Rich request extraction, structured HTTP responses,
+            additional HTTP methods, binary WebSocket payloads, and graceful
+            shutdown are not current public APIs.
+      sections: []
+  see-also:
+    - http-server.guide.application-routing
+    - http-server.guide.configuration
+    - http-server.guide.proxy-security
+    - http-server.guide.websockets
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

@@ -1,0 +1,45 @@
+format: 1
+id: http-server.api.create-application
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "create-application"
+  title-style: code
+  summary: Creates an empty HTTP server application with default address and permissive network policies.
+  tags: [http-server, application, factory]
+  blocks:
+    - type: markdown
+      markdown: |-
+        `create-application` takes no parameters and returns a new `application`. Its initial
+        listen address is `127.0.0.1:3000`; it has no routes and both network allowlists are
+        empty (permissive). The internal constructor is private; obtain an application only
+        through this factory. See [[http-server.api.application]] and
+        [[http-server.guide.application-routing]].
+    - type: example
+      id: signature
+      title: Public function signature
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public function create-application application;
+      response: null
+      diagnostic: null
+      markdown: This is a declaration synopsis, not an executable function body.
+  sections: []
+  see-also:
+    - http-server.api.application
+    - http-server.guide.application-routing
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

@@ -1,0 +1,53 @@
+format: 1
+id: http-server.api.config-result
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "config-result"
+  title-style: code
+  summary: Result record carrying YAML parse status, explanatory message, and server configuration.
+  tags: [http-server, configuration, yaml]
+  blocks:
+    - type: markdown
+      markdown: |-
+        `config-result` has a public constructor `config-result(failed: bool, message: string,
+        config: server-config)`. Its public fields are `failed`, `message`, and `config`.
+        Field defaults are `false`, `''`, and a default-address server config with empty
+        controller and static-directory lists. Parser failures return `failed: true`, the
+        diagnostic message, and a fresh default config; success returns `false`, an empty
+        message, and the parsed config.
+
+        See [[http-server.api.parse-config-yaml]] for the exact failure conditions and
+        message forms.
+    - type: example
+      id: signatures
+      title: Public declaration synopsis
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public class config-result
+            failed bool = false
+            message string = ''
+            config server-config = instance server-config; '127.0.0.1:3000'
+            function construct; failed bool, message string, config server-config
+      response: null
+      diagnostic: null
+      markdown: All constructor arguments are required and replace the field initializers. The constructor body is omitted.
+  sections: []
+  see-also:
+    - http-server.api.parse-config-yaml
+    - http-server.api.server-config
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

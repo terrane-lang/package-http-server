@@ -1,0 +1,126 @@
+format: 1
+id: http-server.guide.configuration
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Application configuration"
+  title-style: text
+  summary: >-
+    Parse YAML composition data into typed mounts, resolve controller identifiers in
+    Terrane code, and apply the resulting address and static directories.
+  tags:
+    - "http-server"
+    - "configuration"
+    - "yaml"
+  blocks:
+    - type: markdown
+      markdown: |-
+        `parse-config-yaml` parses application-composition YAML into a `config-result`;
+        it does not load files or construct controller instances. If the application reads
+        a configuration file, read bounded UTF-8 text explicitly through the application's
+        filesystem capability and pass that text to the parser. This keeps file access
+        visible to the caller.
+  sections:
+    - id: yaml-shape
+      title: "YAML shape and defaults"
+      blocks:
+        - type: markdown
+          markdown: |-
+            The root is a mapping. Its optional `address` defaults to
+            `127.0.0.1:3000`, and optional `mounts` defaults to an empty list. Each mount
+            specifies an absolute path and exactly one of `controller` (a string
+            identifier) or `static-directory` (a directory string). The following data
+            snippet describes composition; it is not a complete application.
+        - type: example
+          id: yaml-composition
+          title: "Controller and static mounts"
+          language: yaml
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            address: 127.0.0.1:8080
+            mounts:
+              - controller: site
+                path: /
+              - static-directory: public
+                path: /assets
+          response: null
+          diagnostic: null
+          markdown: null
+        - type: markdown
+          markdown: |-
+            The parser checks YAML syntax, mapping root, field types, mount structure,
+            leading slash, controller-ID uniqueness, and mount-path uniqueness. It rejects
+            malformed mount entries, entries containing both or neither mount kind, and
+            duplicate controller IDs or paths. Unknown fields are currently ignored rather
+            than rejected; do not rely on a misspelled optional field being diagnosed.
+            Network-policy keys are not part of this schema and are not parsed from YAML.
+    - id: resolving-and-applying
+      title: "Resolving controllers and applying configuration"
+      blocks:
+        - type: markdown
+          markdown: |-
+            A controller ID is an application-defined stable name, not a class name or a
+            reflective constructor instruction. The application enumerates configured
+            controller mounts, looks up each ID in its own source-level mapping, and supplies
+            the matching concrete `controller` to `application.mount`. Use
+            `server-config.controller-path` when you need the configured path for an ID;
+            it returns `none` when no matching controller mount exists. Decide explicitly
+            how your application's composition code handles an unknown ID.
+
+            `application.configure` updates the application's listen address and adds
+            static-directory mounts. It does not instantiate or mount controllers. Apply
+            controller mounts separately after resolving their IDs. For mount and result
+            fields, see [[http-server.api.server-config]],
+            [[http-server.api.controller-mount]], [[http-server.api.static-mount]],
+            [[http-server.api.config-result]], and
+            [[http-server.api.parse-config-yaml]].
+        - type: example
+          id: controller-resolution
+          title: "Resolve an application-defined controller ID"
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            path = config.controller-path; 'site'
+            if path != none
+                app = app.mount; path, site-controller
+            else
+                print; 'No configured mount for controller site.'
+          response: null
+          diagnostic: null
+          markdown: null
+    - id: failures-and-operation
+      title: "Failures and operation"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Check `config-result.failed` before consuming its `config`; on failure,
+            `config-result.message` describes the parser failure. Parsing happens before
+            serving, so malformed composition can be reported without opening a listener.
+            Address binding and later serving failures belong to `application.serve` and its
+            throwable contract, not to YAML parsing. See
+            [[http-server.api.application]] for the exact API.
+  see-also:
+    - http-server.api.parse-config-yaml
+    - http-server.api.server-config
+    - http-server.api.config-result
+    - http-server.guide.application-routing
+
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

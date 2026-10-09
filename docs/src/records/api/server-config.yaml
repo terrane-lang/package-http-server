@@ -1,0 +1,62 @@
+format: 1
+id: http-server.api.server-config
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "server-config"
+  title-style: code
+  summary: Address and controller/static mount collections used to compose an application.
+  tags: [http-server, configuration, routing]
+  blocks:
+    - type: markdown
+      markdown: |-
+        Public constructor `server-config(address: string)` sets the public `address` field
+        to its argument and initializes public `controllers: list of controller-mount` and
+        `static-directories: list of static-mount` to empty lists. The address default shown
+        by parser/factory conventions is `127.0.0.1:3000`; the constructor itself requires
+        an address argument.
+
+        `controller-path(id: string) -> string|none` searches `controllers` in order and
+        returns the path of the first mount whose `id` equals the argument, otherwise `none`.
+        This lookup does not resolve or construct a controller instance. Lists and fields are
+        public and mutable.
+
+        `application.configure(config)` consumes neither the config nor its lists: it uses
+        the address and mounts each static directory in order. Controller mounts remain data
+        for caller resolution. See [[http-server.api.controller-mount]],
+        [[http-server.api.static-mount]], and [[http-server.api.application]].
+    - type: example
+      id: signatures
+      title: Public declaration synopsis
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public class server-config
+            address string = '127.0.0.1:3000'
+            controllers list of controller-mount
+            static-directories list of static-mount
+            function construct; address string
+            function controller-path string|none; id string
+      response: null
+      diagnostic: null
+      markdown: The constructor initializes both lists to empty values. Method bodies are omitted from this declaration synopsis.
+  sections: []
+  see-also:
+    - http-server.api.controller-mount
+    - http-server.api.static-mount
+    - http-server.api.application
+    - http-server.api.parse-config-yaml
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

@@ -1,0 +1,42 @@
+format: 1
+publication:
+  id: http-server
+  kind: reference
+imports: []
+title: HTTP Server
+landing: http-server.guide.introduction
+navigation:
+  - group: Start here
+    numbering: none
+    children:
+      - source: records/guides/introduction.yaml
+      - source: records/tutorials/first-server.yaml
+  - group: Guides
+    numbering: none
+    children:
+      - source: records/guides/application-routing.yaml
+      - source: records/guides/configuration.yaml
+      - source: records/guides/proxy-security.yaml
+      - source: records/guides/websockets.yaml
+  - group: Application API
+    numbering: none
+    children:
+      - source: records/api/create-application.yaml
+      - source: records/api/application.yaml
+      - source: records/api/controller.yaml
+      - source: records/api/routes.yaml
+      - source: records/api/client-info.yaml
+      - source: records/api/access-policy.yaml
+  - group: Configuration API
+    numbering: none
+    children:
+      - source: records/api/parse-config-yaml.yaml
+      - source: records/api/config-result.yaml
+      - source: records/api/server-config.yaml
+      - source: records/api/controller-mount.yaml
+      - source: records/api/static-mount.yaml
+  - group: WebSocket API
+    numbering: none
+    children:
+      - source: records/api/websocket-session.yaml
+      - source: records/api/websocket-event.yaml

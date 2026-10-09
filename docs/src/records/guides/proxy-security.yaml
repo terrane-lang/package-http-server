@@ -1,0 +1,129 @@
+format: 1
+id: http-server.guide.proxy-security
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "Proxy identity and access policy"
+  title-style: text
+  summary: >-
+    Distinguish the TCP peer from the resolved client, trust forwarded identity only
+    behind an explicitly allowlisted proxy, and enforce independent peer and client lists.
+  tags:
+    - "http-server"
+    - "security"
+    - "proxy"
+    - "client-identity"
+  blocks:
+    - type: markdown
+      markdown: |-
+        The server tracks two addresses. The peer address is the TCP connection peer
+        (typically the edge proxy in a proxied deployment). The client address is resolved
+        from forwarded headers only when that peer is trusted; otherwise it is the peer
+        itself. `client-info.peer-ip` and `client-info.client-ip` expose these separately
+        to a client-aware handler. See [[http-server.api.client-info]] and
+        [[http-server.api.access-policy]] for signatures.
+  sections:
+    - id: independent-allowlists
+      title: "Independent allowlists"
+      blocks:
+        - type: markdown
+          markdown: |-
+            `allow-direct` constrains TCP peers; `allow-client` constrains resolved client
+            addresses. Each accepts individual IPv4/IPv6 addresses or CIDR networks, and
+            each list is permissive when empty. Thus an empty client list does not relax a
+            configured peer list, and an empty peer list does not prevent a configured
+            client list from checking the peer-derived identity.
+
+            A non-empty direct list is both connection enforcement and proxy trust:
+            every matching peer is treated as a proxy for identity resolution.
+            Do not populate it with arbitrary direct clients and expect the
+            library to distinguish those clients from proxies. The public API
+            does not have a separate trust-only list.
+
+            Address resolution is independent of the client allowlist. A client-aware
+            handler can report addresses for logging even when no client filter is
+            configured. Logging receives `none` for an unresolved client; do not interpret
+            that as the proxy's identity when a trusted proxy supplied unusable headers.
+        - type: example
+          id: proxy-and-client-lists
+          title: Trust a loopback edge proxy and restrict originating clients
+          language: terrane
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            app = app.allow-direct; '127.0.0.1'
+            app = app.allow-client; '198.51.100.0/24'
+          response: null
+          diagnostic: null
+          markdown: null
+    - id: trusted-forwarding
+      title: "Trusting one edge proxy"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Forwarded headers affect identity only if the direct-peer list is non-empty
+            and the TCP peer matches it. With no direct allowlist, forwarded headers are
+            ignored and the resolved client is the TCP peer. With a trusted edge proxy, the
+            server chooses the rightmost `for` address from RFC 7239 `Forwarded`; it checks
+            `X-Forwarded-For` rightmost only when the standard `Forwarded` header is absent.
+            A present but malformed, unknown, obfuscated, or missing-`for` standard header
+            does not fall back to the legacy header.
+
+            This is single-proxy trust, not trusted-chain traversal. Rightmost selection
+            does not validate or walk multiple proxy hops. If multiple proxies are involved,
+            configure the edge proxy to normalize the authoritative client identity before
+            forwarding. Restrict direct peers so untrusted clients cannot inject headers
+            that the application will trust.
+        - type: example
+          id: proxy-normalization
+          title: "Expected edge-proxy normalization"
+          language: text
+          mode: illustrative
+          target: null
+          timeout-ms: null
+          source: |-
+            Forwarded: for=198.51.100.24
+          response: null
+          diagnostic: null
+          markdown: null
+    - id: unresolved-and-enforcement
+      title: "Unresolved identity and request enforcement"
+      blocks:
+        - type: markdown
+          markdown: |-
+            When a trusted peer provides a missing or malformed forwarded identity,
+            resolution remains `none`; the server does not substitute the proxy address.
+            A non-empty client allowlist cannot match `none` and therefore denies that
+            request. An empty client allowlist permits it while the handler still sees an
+            unresolved client. A non-empty direct allowlist independently rejects an
+            unlisted peer. Policy denials return HTTP 403, including WebSocket upgrade
+            requests, before their handlers run.
+
+            Configure and test both lists for the deployment topology. Invalid address or
+            network entries are parsed into network policy when serving begins, so they
+            fail at serve time rather than while building the application. Listener bind
+            and serving failures also surface through `serve`; the library does not convert
+            arbitrary application errors into HTTP responses. Exact builders are documented
+            on [[http-server.api.application]].
+  see-also:
+    - http-server.api.access-policy
+    - http-server.api.client-info
+    - http-server.guide.websockets
+    - http-server.guide.application-routing
+
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

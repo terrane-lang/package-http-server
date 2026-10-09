@@ -1,0 +1,31 @@
+namespace http-server
+
+from /deps/axum-core/body import Body as body
+from /deps/http import HeaderMap as header-map, HeaderName as header-name, HeaderValue as header-value
+from /core/testing import assert-equal-bool
+
+function test-missing-native-request-interiors-stay-optional;
+    request = native-request::new; (body::empty;)
+    direct = direct-address; ref request
+    forwarded = forwarded-address; ref request
+    assert-equal-bool; direct == none, true
+    assert-equal-bool; forwarded == none, true
+
+function mark-native-header-sensitive bool; header ref header-value
+    header.set_sensitive; true
+    return true
+
+function test-mutable-optional-header-graph-updates-the-original;
+    headers = header-map::new;
+    missing bool|none = (headers.get_mut; 'forwarded').map; mark-native-header-sensitive
+    assert-equal-bool; missing == none, true
+    name = header-name::from_str; 'forwarded'
+    value = header-value::from_str; 'initial'
+    headers.insert; name, value
+    marked bool|none = (headers.get_mut; 'forwarded').map; mark-native-header-sensitive
+    assert-equal-bool; marked == none, false
+    snapshot header-value|none = (headers.get_mut; 'forwarded').cloned;
+    if snapshot != none
+        assert-equal-bool; (snapshot.is_sensitive;), true
+    else
+        assert-equal-bool; true, false

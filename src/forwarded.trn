@@ -1,0 +1,12 @@
+namespace http-server
+
+from /deps/client-ip import rightmost_forwarded as rightmost-forwarded, rightmost_x_forwarded_for as rightmost-x-forwarded-for, Error as client-ip-error
+from /deps/ipnet import IpAddr as ip-addr
+
+function parse-forwarded-headers ip-addr|none; request ref native-request
+    try
+        if (request.headers;).contains_key; 'forwarded'
+            return rightmost-forwarded; (request.headers;)
+        return rightmost-x-forwarded-for; (request.headers;)
+    catch client-ip-error
+        return none

@@ -1,0 +1,132 @@
+namespace http-server
+
+from /core/collections import list
+from /core/documents/yaml import default-yaml-options, parse-yaml, stringify-yaml
+
+public class controller-mount
+    id string = ''
+    path string = '/'
+
+    function construct; id string, path string
+        this.id = id
+        this.path = path
+
+public class static-mount
+    path string = '/static'
+    directory string = 'public'
+
+    function construct; path string, directory string
+        this.path = path
+        this.directory = directory
+
+public class server-config
+    address string = '127.0.0.1:3000'
+    controllers list of controller-mount
+    static-directories list of static-mount
+
+    function construct; address string
+        controllers list of controller-mount = list;
+        static-directories list of static-mount = list;
+        this.address = address
+        this.controllers = controllers
+        this.static-directories = static-directories
+
+    function controller-path string|none; id string
+        index int = 0
+        while index < this.controllers.length
+            mount = this.controllers[index]
+            if mount.id == id
+                return mount.path
+            index = index + 1
+        return none
+
+public class config-result
+    failed bool = false
+    message string = ''
+    config server-config = instance server-config; '127.0.0.1:3000'
+
+    function construct; failed bool, message string, config server-config
+        this.failed = failed
+        this.message = message
+        this.config = config
+
+function valid-mount-path bool; path string
+    if path.length == 0
+        return false
+    return path.contains.start; '/'
+
+function config-failure config-result; message string
+    config = instance server-config; '127.0.0.1:3000'
+    return instance config-result; true, message, config
+
+public function parse-config-yaml config-result; source string
+    parsed = parse-yaml; source, (default-yaml-options;)
+    if parsed.failed
+        return config-failure; (parsed.path.concat; ': ', parsed.message)
+    if parsed.value.kind != 'map'
+        return config-failure; 'configuration must be a mapping'
+
+    address string = '127.0.0.1:3000'
+    address-field = parsed.value.field; 'address'
+    if not address-field.failed
+        if address-field.value.kind != 'string'
+            return config-failure; 'address must be a string'
+        address = address-field.value.scalar
+
+    controllers list of controller-mount = list;
+    static-directories list of static-mount = list;
+    mounts-field = parsed.value.field; 'mounts'
+    if not mounts-field.failed
+        if mounts-field.value.kind != 'list'
+            return config-failure; 'mounts must be a list'
+        index int = 0
+        while index < mounts-field.value.length;
+            item = mounts-field.value.item; index
+            if item.failed or item.value.kind != 'map'
+                return config-failure; 'each mount must be a mapping'
+            path-field = item.value.field; 'path'
+            if path-field.failed or path-field.value.kind != 'string'
+                return config-failure; 'each mount requires a string path'
+            controller-field = item.value.field; 'controller'
+            static-field = item.value.field; 'static-directory'
+            if not (valid-mount-path; path-field.value.scalar)
+                return config-failure; 'mount path must begin with /'
+            if controller-field.failed == static-field.failed
+                return config-failure; 'each mount requires exactly one of controller or static-directory'
+            if not controller-field.failed
+                if controller-field.value.kind != 'string'
+                    return config-failure; 'controller must be a string identifier'
+                existing-index int = 0
+                while existing-index < controllers.length
+                    existing = controllers[existing-index]
+                    if existing.id == controller-field.value.scalar
+                        return config-failure; 'controller identifiers must be unique'
+                    if existing.path == path-field.value.scalar
+                        return config-failure; 'mount paths must be unique'
+                    existing-index = existing-index + 1
+                static-index int = 0
+                while static-index < static-directories.length
+                    if static-directories[static-index].path == path-field.value.scalar
+                        return config-failure; 'mount paths must be unique'
+                    static-index = static-index + 1
+                controllers.append; (instance controller-mount; controller-field.value.scalar, path-field.value.scalar)
+            else
+                if static-field.value.kind != 'string'
+                    return config-failure; 'static-directory must be a string'
+                existing-index int = 0
+                while existing-index < controllers.length
+                    if controllers[existing-index].path == path-field.value.scalar
+                        return config-failure; 'mount paths must be unique'
+                    existing-index = existing-index + 1
+                static-index int = 0
+                while static-index < static-directories.length
+                    if static-directories[static-index].path == path-field.value.scalar
+                        return config-failure; 'mount paths must be unique'
+                    static-index = static-index + 1
+                static-directories.append; (instance static-mount; path-field.value.scalar, static-field.value.scalar)
+            index = index + 1
+
+    config = instance server-config; address
+    config.controllers = controllers
+    config.static-directories = static-directories
+    return instance config-result; false, '', config

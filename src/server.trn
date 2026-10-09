@@ -1,0 +1,128 @@
+namespace http-server
+
+from /deps/axum import Router as native-router, serve as native-serve
+from /deps/axum-core/extract import Request as native-request
+from /deps/axum-core/response import Response as native-response
+from /deps/axum/middleware import Next as middleware-next, from_fn as from-fn
+from /deps/axum/routing import MethodRouter as native-method-router
+from /deps/tower-http/services import ServeDir as serve-dir
+from /deps/tokio/net import TcpListener as tcp-listener
+from /deps/tokio/net import SocketAddr as socket-addr
+from /deps/axum/extract/connect-info import IntoMakeServiceWithConnectInfo as into-make-service-with-connect-info
+from /deps/http import StatusCode as status-code
+from /core/errors import dependency-error, throwable
+
+public class routes
+    private router native-router = native-router::new;
+
+    private function construct; router native-router
+        this.router = move router
+
+    consuming function get routes; path string, handler async function to string
+        method-router native-method-router = native-method-router::new;
+        method-router = method-router.get; handler
+        router = move this.router
+        router = router.route; path, move method-router
+        return instance routes; move router
+
+    consuming function get-with-client routes; path string, handler async function from client-info to string
+        native-handler = async function string; request native-request
+            peer = direct-address; ref request
+            client = client-address; ref request
+            return await handler; (instance client-info; peer, client)
+        method-router native-method-router = native-method-router::new;
+        method-router = method-router.get; native-handler
+        router = move this.router
+        router = router.route; path, move method-router
+        return instance routes; move router
+
+    consuming function websocket routes; path string, handler async function from websocket-session to none throws dependency-error
+        router = move this.router
+        router = register-websocket; move router, path, move handler
+        return instance routes; move router
+
+public interface controller
+    consuming function routes routes; registered-routes routes
+
+public class application
+    private router native-router = native-router::new;
+    address string = '127.0.0.1:3000'
+    private policy access-policy = instance access-policy;
+
+    private function construct; router native-router, address string, policy access-policy
+        this.router = move router
+        this.address = address
+        this.policy = move policy
+
+    consuming function mount application; prefix string, handler-controller controller
+        registered-routes routes = instance routes; (native-router::new;)
+        registered-routes = handler-controller.routes; move registered-routes
+        router = move this.router
+        nested = move registered-routes.router
+        if prefix == '/'
+            router = router.merge; move nested
+        else
+            router = router.nest; prefix, move nested
+        return instance application; move router, this.address, (move this.policy)
+
+    consuming function static-directory application; prefix string, directory string
+        service = serve-dir::new; directory
+        router = move this.router
+        router = router.nest_service; prefix, service
+        return instance application; move router, this.address, (move this.policy)
+
+    consuming function with-address application; address string
+        router = move this.router
+        return instance application; move router, address, (move this.policy)
+
+    consuming function configure application; config server-config
+        app application = instance application; (move this.router), config.address, (move this.policy)
+        index int = 0
+        while index < config.static-directories.length
+            mount = config.static-directories[index]
+            app = app.static-directory; mount.path, mount.directory
+            index = index + 1
+        return app
+
+    consuming function allow-direct application; network string
+        policy = move this.policy
+        policy = policy.allow-direct; network
+        return instance application; (move this.router), this.address, move policy
+
+    consuming function allow-client application; network string
+        policy = move this.policy
+        policy = policy.allow-client; network
+        return instance application; (move this.router), this.address, move policy
+
+    function has-routes bool;
+        return this.router.has_routes;
+
+    consuming async function serve none throws throwable;
+        listener = await tcp-listener::bind; this.address
+        router = this.router
+        direct-policy network-policy = compile-network-policy; this.policy.direct-connections
+        client-policy network-policy = compile-network-policy; this.policy.client-addresses
+        middleware = async function native-response; request native-request, next middleware-next
+            direct = direct-address; ref request
+            direct-allowed bool = false
+            if direct != none
+                direct-allowed = direct-policy.permits; direct
+
+            trust-forwarded bool = direct-allowed and not (direct-policy.is-permissive;)
+            client = resolve-client-address; ref request, direct, trust-forwarded
+            client-allowed bool = client-policy.is-permissive;
+            if not client-allowed
+                if client != none
+                    client-allowed = client-policy.permits; client
+            install-client-address; ref request, client
+
+            if direct-allowed and client-allowed
+                return await next.run; request
+            return (status-code::FORBIDDEN).into_response;
+        router = router.layer; (from-fn; middleware)
+        service into-make-service-with-connect-info of (native-router, socket-addr) = (router.into_make_service_with_connect_info of socket-addr);
+        await native-serve; listener, service
+        return none
+
+public function create-application application;
+    return instance application; (native-router::new;), '127.0.0.1:3000', (instance access-policy;)

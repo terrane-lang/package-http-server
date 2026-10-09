@@ -1,0 +1,54 @@
+format: 1
+id: http-server.api.static-mount
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "static-mount"
+  title-style: code
+  summary: Configuration record describing a static directory and its URL path.
+  tags: [http-server, configuration, static-files]
+  blocks:
+    - type: markdown
+      markdown: |-
+        Public constructor `static-mount(path: string, directory: string)` initializes its
+        public `path` and `directory` fields from the parameters. Their field defaults are
+        `/static` and `public`. The record itself does not mount or validate the directory;
+        `application.static-directory` performs the mounting and underlying service
+        registration.
+
+        YAML mount parsing requires a nonempty path beginning with `/`, and checks duplicate
+        paths against controller and static mounts. Direct construction has no such package
+        validator. See [[http-server.api.server-config]], [[http-server.api.application]],
+        and [[http-server.api.parse-config-yaml]].
+    - type: example
+      id: signatures
+      title: Public declaration synopsis
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public class static-mount
+            path string = '/static'
+            directory string = 'public'
+            function construct; path string, directory string
+      response: null
+      diagnostic: null
+      markdown: Both constructor arguments are required and replace the field initializers. The constructor body is omitted.
+  sections: []
+  see-also:
+    - http-server.api.server-config
+    - http-server.api.application
+    - http-server.api.parse-config-yaml
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

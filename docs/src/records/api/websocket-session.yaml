@@ -1,0 +1,64 @@
+format: 1
+id: http-server.api.websocket-session
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "websocket-session"
+  title-style: code
+  summary: Framework-owned asynchronous text send, close, and event receive operations for one upgraded connection.
+  tags: [http-server, websocket, session]
+  blocks:
+    - type: markdown
+      markdown: |-
+        `websocket-session` has a private constructor and is obtained only by the framework
+        after a successful upgrade, then passed to the registered callback. Its socket field
+        is private and mutable; application code cannot construct or directly access the
+        native socket. All three public operations are mutable and asynchronous, and can
+        report `dependency-error` from transport operations.
+
+        `send-text(text: string) -> async none throws dependency-error` sends a native text
+        frame when the session still has a socket; it returns none. `close() -> async none
+        throws dependency-error` sends a native `Close` frame when connected. Neither method
+        explicitly clears the socket after sending.
+
+        `receive() -> async websocket-event throws dependency-error` awaits one native receive
+        when connected. Native `Text` becomes event kind lower-case `text` with its payload;
+        `Close`, `Binary`, `Ping`, and `Pong` become events with those exact native names and
+        no text payload. If the stream returns no frame (or the optional socket is absent),
+        it returns kind `closed`, text `none`. See [[http-server.api.websocket-event]].
+
+        The framework catches a callback's `dependency-error` after the upgrade, so a failed
+        handler ends that session rather than propagating through the server loop. The API is
+        text-oriented: there is no binary send or payload accessor for non-text events.
+    - type: example
+      id: signatures
+      title: Public declaration synopsis
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public class websocket-session
+            mutable async function send-text none throws dependency-error; text string
+            mutable async function close none throws dependency-error;
+            mutable async function receive websocket-event throws dependency-error;
+      response: null
+      diagnostic: null
+      markdown: Method bodies and private implementation members are omitted from this declaration synopsis.
+  sections: []
+  see-also:
+    - http-server.api.websocket-event
+    - http-server.api.routes
+    - http-server.guide.websockets
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

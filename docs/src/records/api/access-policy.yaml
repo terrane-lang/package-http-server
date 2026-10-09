@@ -1,0 +1,59 @@
+format: 1
+id: http-server.api.access-policy
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "access-policy"
+  title-style: code
+  summary: Standalone mutable configuration value for direct and client address network lists.
+  tags: [http-server, access-control, client-address]
+  blocks:
+    - type: markdown
+      markdown: |-
+        `access-policy` has a public zero-argument constructor. Its public fields
+        `direct-connections: list of string` and `client-addresses: list of string` start
+        empty. Strings represent IP addresses or CIDR networks; entries are parsed when a
+        server starts, so invalid values fail at that time.
+
+        `allow-direct(network: string) -> access-policy` and
+        `allow-client(network: string) -> access-policy` are consuming builders: each appends
+        the supplied string to the respective public list and returns the policy. The lists
+        may also be mutated directly through their public fields.
+
+        This is a standalone public value, not an application configuration hook: no public
+        `application` setter accepts an `access-policy`. Configure an application's two
+        policies with `application.allow-direct` and `application.allow-client` instead. See
+        [[http-server.guide.proxy-security]] for enforcement and forwarding behavior.
+    - type: example
+      id: signatures
+      title: Public declaration synopsis
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public class access-policy
+            direct-connections list of string
+            client-addresses list of string
+            function construct;
+            consuming function allow-direct access-policy; network string
+            consuming function allow-client access-policy; network string
+      response: null
+      diagnostic: null
+      markdown: The constructor initializes both lists to empty values. Method bodies are omitted from this declaration synopsis.
+  sections: []
+  see-also:
+    - http-server.api.application
+    - http-server.guide.proxy-security
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

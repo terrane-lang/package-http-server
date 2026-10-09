@@ -1,0 +1,72 @@
+format: 1
+id: http-server.api.parse-config-yaml
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "parse-config-yaml"
+  title-style: code
+  summary: Parses address and controller/static mounts from YAML into a config-result.
+  tags: [http-server, configuration, yaml]
+  blocks:
+    - type: markdown
+      markdown: |-
+        `parse-config-yaml(source: string) -> config-result` parses YAML using default YAML
+        options. It does not read files, resolve controller identifiers, start serving, or
+        mutate an application. On failure, `failed` is true and `config` is a fresh default
+        configuration (`127.0.0.1:3000`, no mounts); on success, `failed` is false and
+        `message` is empty.
+
+        These validation failures and messages are observable:
+
+        - YAML parser error: `<path>: <message>`, using the underlying parser's path and
+          message.
+        - Root is not a mapping: `configuration must be a mapping`.
+        - `address` is present but not a string: `address must be a string`.
+        - `mounts` is present but not a list: `mounts must be a list`.
+        - A mount entry is failed/unavailable or is not a mapping: `each mount must be a mapping`.
+        - Missing `path`, or `path` not a string: `each mount requires a string path`.
+        - Empty path or path not beginning `/`: `mount path must begin with /`.
+        - Both `controller` and `static-directory` are present, or both absent:
+          `each mount requires exactly one of controller or static-directory`.
+        - Controller value is not a string: `controller must be a string identifier`.
+        - Repeated controller identifier: `controller identifiers must be unique`.
+        - Any repeated mount path across controller/static entries:
+          `mount paths must be unique`.
+        - Static-directory value is not a string: `static-directory must be a string`.
+
+        Unknown mapping keys are ignored; this parser does not enforce a closed schema.
+        Path validation checks only nonempty leading slash, not normalization or other path
+        constraints. Duplicate checks are exact string comparisons. See
+        [[http-server.api.config-result]], [[http-server.api.server-config]], and
+        [[http-server.guide.configuration]].
+    - type: example
+      id: signature
+      title: Public function signature
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public function parse-config-yaml config-result; source string
+      response: null
+      diagnostic: null
+      markdown: This is a declaration synopsis, not an executable function body.
+  sections: []
+  see-also:
+    - http-server.api.config-result
+    - http-server.api.server-config
+    - http-server.api.controller-mount
+    - http-server.api.static-mount
+    - http-server.guide.configuration
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

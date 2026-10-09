@@ -1,0 +1,68 @@
+namespace http-server
+
+from /deps/axum/extract/ws import Message as websocket-message, WebSocket as native-websocket
+from /deps/axum/extract import WebSocketUpgrade as websocket-upgrade
+from /deps/axum-core/response import Response as native-response
+from /deps/axum/routing import get as native-websocket-get
+from /deps/axum import Router as native-router
+from /core/errors import dependency-error
+
+public class websocket-event
+    kind string = 'closed'
+    text string|none = none
+
+    function construct; kind string, text string|none
+        this.kind = kind
+        this.text = text
+
+public class websocket-session
+    private socket native-websocket|none = none
+
+    private function construct; socket native-websocket
+        this.socket = move socket
+
+    mutable async function send-text none throws dependency-error; text string
+        socket = move this.socket
+        if socket != none
+            await socket.send; (websocket-message::text; text)
+        this.socket = move socket
+        return none
+
+    mutable async function close none throws dependency-error;
+        socket = move this.socket
+        if socket != none
+            await socket.send; (websocket-message::Close; none)
+        this.socket = move socket
+        return none
+
+    mutable async function receive websocket-event throws dependency-error;
+        message websocket-message|none = none
+        socket = move this.socket
+        if socket != none
+            message = await socket.recv;
+        this.socket = move socket
+        if message != none
+            kind = message.variant-name;
+            if kind == 'Text'
+                native-text = (move message).into_text;
+                text = native-text.as_str;
+                return instance websocket-event; 'text', text
+            return instance websocket-event; kind, none
+        return instance websocket-event; 'closed', none
+
+async function run-websocket; socket native-websocket, handler async function from websocket-session to none throws dependency-error
+    session = instance websocket-session; move socket
+    try
+        await handler; move session
+    catch dependency-error
+        return
+
+function upgrade-websocket native-response; request websocket-upgrade, handler async function from websocket-session to none throws dependency-error
+    callback = async function; socket native-websocket
+        await run-websocket; move socket, handler
+    return request.on_upgrade; move callback
+
+function register-websocket native-router; router native-router, path string, handler async function from websocket-session to none throws dependency-error
+    callback = async function native-response; request websocket-upgrade
+        return upgrade-websocket; move request, handler
+    return router.route; path, (native-websocket-get; move callback)

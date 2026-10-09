@@ -1,0 +1,53 @@
+format: 1
+id: http-server.api.controller-mount
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "controller-mount"
+  title-style: code
+  summary: Configuration record associating a controller identifier with an application path.
+  tags: [http-server, configuration, routing]
+  blocks:
+    - type: markdown
+      markdown: |-
+        Public constructor `controller-mount(id: string, path: string)` initializes public
+        fields `id` and `path` to the supplied strings. Their field defaults before explicit
+        initialization are `''` and `/`, respectively. The type carries configuration data;
+        it does not resolve the identifier to a controller object.
+
+        `server-config.controller-path(id)` searches controller mounts in list order and
+        returns the first matching path as `string|none`, or `none` when absent. Identifiers
+        are ordinary strings. YAML parsing enforces unique IDs among controller mounts and
+        unique paths across both mount kinds; direct construction does not add those checks.
+        See [[http-server.api.server-config]] and [[http-server.api.parse-config-yaml]].
+    - type: example
+      id: signatures
+      title: Public declaration synopsis
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public class controller-mount
+            id string = ''
+            path string = '/'
+            function construct; id string, path string
+      response: null
+      diagnostic: null
+      markdown: Both constructor arguments are required and replace the field initializers. The constructor body is omitted.
+  sections: []
+  see-also:
+    - http-server.api.server-config
+    - http-server.api.parse-config-yaml
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

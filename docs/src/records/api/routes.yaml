@@ -1,0 +1,66 @@
+format: 1
+id: http-server.api.routes
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "routes"
+  title-style: code
+  summary: Controller-local consuming builder for text GET and WebSocket route registrations.
+  tags: [http-server, routing, controllers]
+  blocks:
+    - type: markdown
+      markdown: |-
+        `routes` has no public constructor: the framework supplies a fresh builder to
+        `controller.routes`. Route paths are relative to the controller's mount prefix.
+        Each registration consumes and returns the builder, so retain the returned value.
+
+        `get(path: string, handler: async function to string) -> routes` registers a GET
+        handler. The handler receives no request arguments and returns response text. There
+        is no declared package-level error contract on the handler.
+
+        `get-with-client(path: string, handler: async function from client-info to string)
+        -> routes` registers a GET handler supplied with peer and resolved-client addresses.
+        Address resolution follows the application's trust policy; see
+        [[http-server.guide.proxy-security]].
+
+        `websocket(path: string, handler: async function from websocket-session to none
+        throws dependency-error) -> routes` registers a WebSocket endpoint. Its callback is
+        asynchronous; session failures use `dependency-error`. The framework handles an
+        individual callback failure after upgrade rather than terminating the HTTP server.
+        Event and session operations are described in [[http-server.api.websocket-session]]
+        and [[http-server.api.websocket-event]].
+    - type: example
+      id: signatures
+      title: Public declaration synopsis
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public class routes
+            consuming function get routes; path string, handler async function to string
+            consuming function get-with-client routes; path string, handler async function from client-info to string
+            consuming function websocket routes; path string, handler async function from websocket-session to none throws dependency-error
+      response: null
+      diagnostic: null
+      markdown: Method bodies and the private constructor are omitted from this declaration synopsis.
+  sections: []
+  see-also:
+    - http-server.api.controller
+    - http-server.api.client-info
+    - http-server.api.websocket-session
+    - http-server.api.websocket-event
+    - http-server.guide.application-routing
+    - http-server.guide.proxy-security
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

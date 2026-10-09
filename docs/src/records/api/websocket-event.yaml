@@ -1,0 +1,51 @@
+format: 1
+id: http-server.api.websocket-event
+kind: topic
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: "websocket-event"
+  title-style: code
+  summary: Event record returned by receiving a WebSocket frame or observing stream closure.
+  tags: [http-server, websocket, events]
+  blocks:
+    - type: markdown
+      markdown: |-
+        Public constructor `websocket-event(kind: string, text: string|none)` initializes
+        public fields `kind` and `text`. Their defaults are `closed` and `none`. A receive
+        from [[http-server.api.websocket-session]] maps native text to lower-case kind
+        `text` with its payload in `text`; all other native variants retain their native
+        variant names (`Close`, `Binary`, `Ping`, `Pong`) and have no text payload. A stream
+        end maps to lower-case `closed` with no text. Thus `closed` and `Close` are distinct:
+        the former means no message was received because the stream ended; the latter is a
+        received close frame.
+    - type: example
+      id: signatures
+      title: Public declaration synopsis
+      language: terrane
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        public class websocket-event
+            kind string = 'closed'
+            text string|none = none
+            function construct; kind string, text string|none
+      response: null
+      diagnostic: null
+      markdown: Both constructor arguments are required and replace the field initializers. The constructor body is omitted.
+  sections: []
+  see-also:
+    - http-server.api.websocket-session
+    - http-server.guide.websockets
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

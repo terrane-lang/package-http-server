@@ -1,0 +1,94 @@
+format: 1
+id: http-server.guide.introduction
+kind: topic
+
+surface: null
+
+lifecycle:
+  status: current
+  stability: experimental
+  since: "unversioned"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+
+documentation:
+  status: complete
+  title: "HTTP server"
+  title-style: text
+  summary: >-
+    Compose a Terrane application from relative-route controllers and static mounts,
+    then serve it over TCP with optional client-address policy and WebSocket endpoints.
+  tags:
+    - "http-server"
+    - "application-server"
+    - "routing"
+  blocks:
+    - type: markdown
+      markdown: |-
+        `http-server` is a Terrane-native application server. Application code works with
+        Terrane builders and interfaces; Axum, Tower HTTP, and Tokio are implementation
+        dependencies rather than application-facing router or extractor APIs.
+
+        The package is experimental and intentionally narrow: ordinary GET handlers return
+        text, optional client information is supplied through a dedicated handler form,
+        static directories can be mounted, and WebSocket handlers expose text plus event
+        kinds. It does not provide general request extraction, structured HTTP responses,
+        middleware, state injection, arbitrary HTTP methods, or a broad WebSocket payload
+        API. See the API references for exact callable signatures and the tutorial for a
+        guided first server.
+    - type: example
+      id: package-dependency
+      title: "Package and capability requirements"
+      language: toml
+      mode: illustrative
+      target: null
+      timeout-ms: null
+      source: |-
+        [terrane-dependencies.http-server]
+        path = "../http-server"
+
+        [profile]
+        capabilities = ["build", "networking", "filesystem", "threads"]
+      response: null
+      diagnostic: null
+      markdown: null
+    - type: markdown
+      markdown: |-
+        In a consuming package, declare the library dependency by the path appropriate to
+        your project. Allow its dependency effects in the active profile: serving requires
+        networking, static-file service requires filesystem capability, and the
+        executor may use threads. The manifest also declares build effects.
+        Keep capability policy explicit in the consuming package; importing the library does not
+        grant capabilities implicitly.
+  sections:
+    - id: start-here
+      title: "Start here"
+      blocks:
+        - type: markdown
+          markdown: |-
+            Start with [[http-server.tutorial.first-server]] to assemble a small
+            application. Then read [[http-server.guide.application-routing]],
+            [[http-server.guide.configuration]], [[http-server.guide.proxy-security]],
+            and [[http-server.guide.websockets]] for focused operational guidance.
+
+            The API reference covers [[http-server.api.create-application]],
+            [[http-server.api.application]], [[http-server.api.routes]],
+            [[http-server.api.controller]], [[http-server.api.client-info]],
+            [[http-server.api.access-policy]], [[http-server.api.parse-config-yaml]],
+            [[http-server.api.config-result]], [[http-server.api.server-config]],
+            [[http-server.api.controller-mount]], [[http-server.api.static-mount]],
+            [[http-server.api.websocket-session]], and [[http-server.api.websocket-event]].
+            API pages define signatures; these guides explain how the pieces fit together.
+      sections: []
+  see-also:
+    - http-server.tutorial.first-server
+    - http-server.guide.application-routing
+    - http-server.guide.configuration
+    - http-server.guide.proxy-security
+    - http-server.guide.websockets
+
+provenance:
+  specification: null
+  conformance: null
+  compiler: null

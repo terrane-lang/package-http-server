@@ -1,0 +1,106 @@
+namespace tests/http-server/routing
+
+from /http-server import application, controller, routes, websocket-session, create-application, parse-config-yaml
+from /core/errors import dependency-error
+from /core/testing import assert-equal-bool, assert-equal-string
+
+class site implements controller
+    consuming function routes routes; registered-routes routes
+        registered-routes = registered-routes.get; '/', this.home
+        registered-routes = registered-routes.get; '/about', this.about
+        return registered-routes
+
+    async function home string;
+        return 'hello from Terrane'
+
+    async function about string;
+        return 'about'
+
+class api implements controller
+    consuming function routes routes; registered-routes routes
+        registered-routes = registered-routes.get; '/health', this.health
+        return registered-routes
+
+    async function health string;
+        return 'ok'
+
+class socket-controller implements controller
+    consuming function routes routes; registered-routes routes
+        registered-routes = registered-routes.websocket; '/events', this.events
+        return registered-routes
+
+    async function events none throws dependency-error; socket websocket-session
+        event = await socket.receive;
+        text = event.text
+        if text != none
+            await socket.send-text; text
+        await socket.close;
+        return none
+
+function test-empty-application-has-no-routes;
+    app application = create-application;
+    assert-equal-bool; (app.has-routes;), false
+
+function test-controller-mount-registers-relative-routes;
+    app application = create-application;
+    app = app.mount; '/', (instance site;)
+    assert-equal-bool; (app.has-routes;), true
+
+function test-nested-controller-and-static-directory-mounts;
+    app application = create-application;
+    app = app.mount; '/api', (instance api;)
+    app = app.static-directory; '/static', '.'
+    assert-equal-bool; (app.has-routes;), true
+
+function test-exact-root-and-prefixed-mounts-coexist;
+    app application = create-application;
+    app = app.mount; '/', (instance site;)
+    app = app.mount; '/api', (instance api;)
+    app = app.static-directory; '/assets', '.'
+    assert-equal-bool; (app.has-routes;), true
+
+function test-address-is-framework-state;
+    app application = create-application;
+    app = app.with-address; '127.0.0.1:8080'
+    assert-equal-string; app.address, '127.0.0.1:8080'
+
+function test-access-policies-and-websocket-routes-compose;
+    app application = create-application;
+    app = app.allow-direct; '127.0.0.0/8'
+    app = app.allow-direct; '::1/128'
+    app = app.allow-client; '192.0.2.0/24'
+    app = app.allow-client; '2001:db8::/32'
+    app = app.mount; '/socket', (instance socket-controller;)
+    assert-equal-bool; (app.has-routes;), true
+
+function test-yaml-configures-address-static-content-and-controller-prefixes;
+    source = 'address: 127.0.0.1:8080\nmounts:\n  - controller: site\n    path: /\n  - static-directory: public\n    path: /assets'
+    parsed = parse-config-yaml; source
+    assert-equal-bool; parsed.failed, false
+    assert-equal-string; parsed.config.address, '127.0.0.1:8080'
+    site-path = parsed.config.controller-path; 'site'
+    if site-path != none
+        assert-equal-string; site-path, '/'
+    else
+        assert-equal-bool; true, false
+    app application = create-application;
+    app = app.configure; parsed.config
+    assert-equal-string; app.address, '127.0.0.1:8080'
+    assert-equal-bool; (app.has-routes;), true
+
+function test-yaml-rejects-ambiguous-mounts;
+    parsed = parse-config-yaml; 'mounts:\n  - controller: site\n    static-directory: public\n    path: /'
+    assert-equal-bool; parsed.failed, true
+    assert-equal-string; parsed.message, 'each mount requires exactly one of controller or static-directory'
+
+function test-yaml-rejects-malformed-and-colliding-mounts;
+    malformed = parse-config-yaml; 'mounts:\n  - controller: site\n    path: relative'
+    assert-equal-string; malformed.message, 'mount path must begin with /'
+    duplicate-id = parse-config-yaml; 'mounts:\n  - controller: site\n    path: /\n  - controller: site\n    path: /other'
+    assert-equal-string; duplicate-id.message, 'controller identifiers must be unique'
+    duplicate-path = parse-config-yaml; 'mounts:\n  - controller: site\n    path: /same\n  - static-directory: public\n    path: /same'
+    assert-equal-string; duplicate-path.message, 'mount paths must be unique'
+
+function test-missing-configured-controller-is-explicit;
+    parsed = parse-config-yaml; 'mounts:\n  - controller: site\n    path: /'
+    assert-equal-bool; (parsed.config.controller-path; 'missing') == none, true

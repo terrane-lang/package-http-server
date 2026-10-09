@@ -1,0 +1,34 @@
+namespace http-server
+
+from /deps/axum-core/body import Body as body
+from /deps/http import HeaderName as header-name, HeaderValue as header-value
+from /core/testing import assert-equal-bool
+
+function identity-test-request native-request; forwarded string|none, legacy string|none
+    request = native-request::new; (body::empty;)
+    if forwarded != none
+        (request.headers_mut;).insert; (header-name::from_str; 'forwarded'), (header-value::from_str; forwarded)
+    if legacy != none
+        (request.headers_mut;).insert; (header-name::from_str; 'x-forwarded-for'), (header-value::from_str; legacy)
+    return request
+
+function test-untrusted-forwarded-identity-is-ignored;
+    request = identity-test-request; 'for=192.0.2.44', none
+    peer = ip-addr::from_str; '127.0.0.1'
+    client = resolve-client-address; ref request, peer, false
+    assert-forwarded-address; client, '127.0.0.1/32'
+
+function test-trusted-proxy-resolves-client-without-client-allowlist;
+    request = identity-test-request; 'for=192.0.2.44', none
+    peer = ip-addr::from_str; '127.0.0.1'
+    client = resolve-client-address; ref request, peer, true
+    assert-forwarded-address; client, '192.0.2.44/32'
+    if client != none
+        (request.extensions_mut;).insert; client
+    assert-forwarded-address; (client-address; ref request), '192.0.2.44/32'
+
+function test-trusted-proxy-missing-identity-does-not-become-peer;
+    request = identity-test-request; none, none
+    peer = ip-addr::from_str; '127.0.0.1'
+    client = resolve-client-address; ref request, peer, true
+    assert-equal-bool; client == none, true

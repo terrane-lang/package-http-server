@@ -1,0 +1,98 @@
+namespace http-server
+
+from /deps/ipnet import IpNet as ip-net
+from /deps/ipnet import IpAddr as ip-addr
+from /deps/tokio/net import SocketAddr as socket-addr
+from /deps/axum/extract import ConnectInfo as connect-info
+from /deps/axum-core/extract import Request as native-request
+from /core/collections import list
+from /core/errors import dependency-error
+
+function peer-address ip-addr; peer ref (connect-info of socket-addr)
+    payload socket-addr = peer.n0
+    return payload.ip;
+
+function direct-address ip-addr|none; request ref native-request
+    return (((request.extensions;).get of (connect-info of socket-addr));).map; peer-address
+
+
+function forwarded-address ip-addr|none; request ref native-request
+    return parse-forwarded-headers; request
+
+function client-address ip-addr|none; request ref native-request
+    return (((request.extensions;).get of ip-addr);).cloned;
+
+function install-client-address; request ref native-request, client ip-addr|none
+    if client != none
+        (request.extensions_mut;).insert; client
+
+function resolve-client-address ip-addr|none; request ref native-request, direct ip-addr|none, trust-forwarded bool
+    if trust-forwarded
+        return forwarded-address; request
+    return direct
+
+public class client-info
+    private peer ip-addr|none
+    private client ip-addr|none
+
+    private function construct; peer ip-addr|none, client ip-addr|none
+        this.peer = peer
+        this.client = client
+
+    function peer-ip ip-addr|none;
+        return this.peer
+
+    function client-ip ip-addr|none;
+        return this.client
+
+public class access-policy
+    direct-connections list of string
+    client-addresses list of string
+
+    function construct;
+        direct-connections list of string = list;
+        client-addresses list of string = list;
+        this.direct-connections = direct-connections
+        this.client-addresses = client-addresses
+
+    consuming function allow-direct access-policy; network string
+        this.direct-connections.append; network
+        return this
+
+    consuming function allow-client access-policy; network string
+        this.client-addresses.append; network
+        return this
+
+class network-policy
+    private networks list of ip-net
+
+    private function construct; networks list of ip-net
+        this.networks = move networks
+
+    function is-permissive bool;
+        return this.networks.length == 0
+
+    function permits bool; address ip-addr
+        if this.is-permissive;
+            return true
+        index int = 0
+        while index < this.networks.length
+            network = this.networks[index]
+            if network.contains; ref address
+                return true
+            index = index + 1
+        return false
+
+function compile-network-policy network-policy throws dependency-error; networks list of string
+    parsed list of ip-net = list;
+    index int = 0
+    while index < networks.length
+        network string = networks[index]
+        if not (network.contains; '/')
+            if network.contains; ':'
+                network = network.concat; '/128'
+            else
+                network = network.concat; '/32'
+        parsed.append; (ip-net::from_str; network)
+        index = index + 1
+    return instance network-policy; move parsed
